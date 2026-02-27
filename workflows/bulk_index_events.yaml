@@ -1,0 +1,27 @@
+name: bulk_index_events
+description: "Writes simulated attack events into an Elasticsearch data stream via bulk API"
+enabled: true
+
+inputs:
+  - name: target_index
+    type: string
+    required: true
+  - name: events_bulk_body
+    type: string
+    required: true
+
+steps:
+  - name: write_events
+    type: http
+    with:
+      url: "{{ consts.es_url }}/{{ inputs.target_index }}/_bulk?refresh=wait_for"
+      method: POST
+      headers:
+        Authorization: "ApiKey {{ consts.api_key }}"
+        Content-Type: "application/x-ndjson"
+      body: "{{ inputs.events_bulk_body }}\n"
+    on-failure:
+      retry:
+        max-attempts: 2
+        delay: 3s
+      continue: false
