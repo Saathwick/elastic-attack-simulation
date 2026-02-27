@@ -1,0 +1,111 @@
+version: "1"
+name: attack_simulation
+description: "Simulates any attack and analyzes detection coverage"
+enabled: true
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: attack_description
+    type: string
+    description: "The attack technique to simulate"
+    required: true
+  - name: attacker_ip
+    type: string
+    required: false
+  - name: target_host
+    type: string
+    required: false
+
+consts:
+  kibana_url: "<YOUR KIBANA URL>"
+  api_key: "<YOUR API>"
+
+steps:
+  - name: profile_logs
+    type: http
+    with:
+      url: "{{ consts.kibana_url }}/api/agent_builder/converse"
+      method: POST
+      headers:
+        Authorization: "ApiKey {{ consts.api_key }}"
+        Content-Type: "application/json"
+        kbn-xsrf: "true"
+      body:
+        agent_id: "log_profiler"
+        input: "Find the best telemetry dataset for this attack: {{ inputs.attack_description }} from IP {{ inputs.attacker_ip }} targeting {{ inputs.target_host }}"
+    on-failure:
+      retry:
+        max-attempts: 2
+        delay: 5s
+      continue: false
+
+  - name: research_ttp
+    type: http
+    with:
+      url: "{{ consts.kibana_url }}/api/agent_builder/converse"
+      method: POST
+      headers:
+        Authorization: "ApiKey {{ consts.api_key }}"
+        Content-Type: "application/json"
+        kbn-xsrf: "true"
+      body:
+        agent_id: "ttp_researcher"
+        input: "Build a simulation plan. profiler_output: {{ steps.profile_logs.output.data.response.message }} user_parameters: attacker_ip={{ inputs.attacker_ip }}, target_host={{ inputs.target_host }}"
+    on-failure:
+      retry:
+        max-attempts: 2
+        delay: 5s
+      continue: false
+
+  - name: fabricate_events
+    type: http
+    with:
+      url: "{{ consts.kibana_url }}/api/agent_builder/converse"
+      method: POST
+      headers:
+        Authorization: "ApiKey {{ consts.api_key }}"
+        Content-Type: "application/json"
+        kbn-xsrf: "true"
+      body:
+        agent_id: "event_fabricator"
+        input: "Generate exactly 12 attack events using create op_type unless mentioned otherwise. Use nested JSON objects only, no dot-notation keys. simulation_plan: {{ steps.research_ttp.output.data.response.message | truncate: 3000 }}"
+    timeout: 300s
+    on-failure:
+      retry:
+        max-attempts: 1
+        delay: 5s
+      continue: false
+
+  - name: analyze_coverage
+    type: http
+    with:
+      url: "{{ consts.kibana_url }}/api/agent_builder/converse"
+      method: POST
+      headers:
+        Authorization: "ApiKey {{ consts.api_key }}"
+        Content-Type: "application/json"
+        kbn-xsrf: "true"
+      body:
+        agent_id: "coverage_analyst"
+        input: "Analyze detection coverage. ingestion_receipt: {{ steps.fabricate_events.output.data.response.message }}"
+    on-failure:
+      retry:
+        max-attempts: 2
+        delay: 5s
+      continue: false
+
+  - name: final_report
+    type: console
+    with:
+      message: |
+        === ATTACK SIMULATION COMPLETE ===
+        Attack: {{ inputs.attack_description }}
+        Attacker IP: {{ inputs.attacker_ip }}
+        Target: {{ inputs.target_host }}
+
+        COVERAGE REPORT:
+        {{ steps.analyze_coverage.output.data.response.message }}
+
+
