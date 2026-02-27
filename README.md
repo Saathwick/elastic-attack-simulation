@@ -2,6 +2,8 @@
 
 **Elasticsearch Agent Builder Hackathon | February 2026**
 
+📖 **Detailed Blog Post:** [Autonomous Attack Simulation & Detection Coverage Validation](https://www.linkedin.com/pulse/autonomous-attack-simulation-detection-coverage-venkataramalingam-iddve)
+
 ![Architecture](screenshots/Architecture.png)
 
 ---
