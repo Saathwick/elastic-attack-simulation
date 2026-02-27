@@ -1,4 +1,3 @@
-
 FROM logs-*
 | WHERE event.code == "4625"
   AND event.outcome == "failure"
@@ -9,4 +8,5 @@ FROM logs-*
         last_seen  = MAX(@timestamp)
   BY source.ip
 | WHERE failure_count >= 8
+
 | SORT failure_count DESC
